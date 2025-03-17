@@ -242,6 +242,18 @@ func (qb *QueryBuilder) Apply(filters []Filter, options *QueryOptions, model int
 	return qb, nil
 }
 
+func (qb *QueryBuilder) SelectBuilder() squirrel.SelectBuilder {
+	return qb.selectBuilder
+}
+
+func (qb *QueryBuilder) UpdateBuilder() squirrel.UpdateBuilder {
+	return qb.updateBuilder
+}
+
+func (qb *QueryBuilder) DeleteBuilder() squirrel.DeleteBuilder {
+	return qb.deleteBuilder
+}
+
 // applySelectFilters applies filters to a SELECT query
 func (qb *QueryBuilder) applySelectFilters(filters []Filter) (*QueryBuilder, error) {
 	conditions := make([]squirrel.Sqlizer, 0, len(filters))
