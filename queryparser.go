@@ -41,6 +41,13 @@ const (
 	SortDesc SortDirection = "desc"
 )
 
+const (
+	selectQuery int64 = iota
+	updateQuery
+	deleteQuery
+	insertQuery
+)
+
 // QueryOptions represents additional query options like sorting and pagination
 type QueryOptions struct {
 	Sort   map[string]SortDirection `json:"sort,omitempty"`
@@ -56,6 +63,22 @@ type QueryBuilder struct {
 	deleteBuilder squirrel.DeleteBuilder
 	insertBuilder squirrel.InsertBuilder
 	ctx           context.Context
+}
+
+// ToSql returns the SQL query string and arguments from the underlying Squirrel builder
+func (qb *QueryBuilder) ToSql() (string, []interface{}, error) {
+	switch qb.queryType {
+	case selectQuery:
+		return qb.selectBuilder.ToSql()
+	case updateQuery:
+		return qb.updateBuilder.ToSql()
+	case deleteQuery:
+		return qb.deleteBuilder.ToSql()
+	case insertQuery:
+		return qb.insertBuilder.ToSql()
+	default:
+		return "", nil, fmt.Errorf("invalid query type")
+	}
 }
 
 // ParseFilter parses a JSON string into a Filter
@@ -300,23 +323,27 @@ func NewQueryBuilder(ctx context.Context) *QueryBuilder {
 // WithSelect sets up the QueryBuilder for SELECT operations
 func (qb *QueryBuilder) WithSelect(table string) *QueryBuilder {
 	qb.selectBuilder = squirrel.Select("*").From(table)
+	qb.queryType = selectQuery
 	return qb
 }
 
 // WithUpdate sets up the QueryBuilder for UPDATE operations
 func (qb *QueryBuilder) WithUpdate(table string) *QueryBuilder {
 	qb.updateBuilder = squirrel.Update(table)
+	qb.queryType = updateQuery
 	return qb
 }
 
 // WithDelete sets up the QueryBuilder for DELETE operations
 func (qb *QueryBuilder) WithDelete(table string) *QueryBuilder {
 	qb.deleteBuilder = squirrel.Delete(table)
+	qb.queryType = deleteQuery
 	return qb
 }
 
 // WithInsert sets up the QueryBuilder for INSERT operations
 func (qb *QueryBuilder) WithInsert(table string) *QueryBuilder {
 	qb.insertBuilder = squirrel.Insert(table)
+	qb.queryType = insertQuery
 	return qb
 }

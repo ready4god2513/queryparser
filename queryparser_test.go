@@ -24,6 +24,61 @@ type TestUserNoTags struct {
 	Age  int
 }
 
+func TestToSql(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name     string
+		builder  func() *QueryBuilder
+		wantSQL  string
+		wantArgs []interface{}
+		wantErr  bool
+	}{
+		{
+			name: "select query",
+			builder: func() *QueryBuilder {
+				qb := NewQueryBuilder(ctx)
+				qb.WithSelect("users")
+				return qb
+			},
+			wantSQL:  "SELECT * FROM users",
+			wantArgs: nil,
+			wantErr:  false,
+		},
+		{
+			name: "select with where clause",
+			builder: func() *QueryBuilder {
+				qb := NewQueryBuilder(ctx)
+				qb.WithSelect("users")
+				filters := []Filter{
+					{Field: "age", Operator: OpGt, Value: 18},
+				}
+				qb.Apply(filters, nil, &TestUser{})
+				return qb
+			},
+			wantSQL:  "SELECT * FROM users WHERE (age > ?)",
+			wantArgs: []interface{}{18},
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			qb := tt.builder()
+			sql, args, err := qb.ToSql()
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantSQL, sql)
+			assert.Equal(t, tt.wantArgs, args)
+		})
+	}
+}
+
 func TestParseFilter(t *testing.T) {
 	tests := []struct {
 		name     string
