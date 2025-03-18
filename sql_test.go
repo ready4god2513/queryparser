@@ -29,15 +29,15 @@ func TestToSql(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		builder  func() *QueryBuilder
+		builder  func() *SqlBuilder
 		wantSQL  string
 		wantArgs []interface{}
 		wantErr  bool
 	}{
 		{
 			name: "select query",
-			builder: func() *QueryBuilder {
-				qb := NewQueryBuilder(ctx)
+			builder: func() *SqlBuilder {
+				qb := NewSqlBuilder(ctx)
 				qb.WithSelect("users")
 				return qb
 			},
@@ -47,8 +47,8 @@ func TestToSql(t *testing.T) {
 		},
 		{
 			name: "select with where clause",
-			builder: func() *QueryBuilder {
-				qb := NewQueryBuilder(ctx)
+			builder: func() *SqlBuilder {
+				qb := NewSqlBuilder(ctx)
 				qb.WithSelect("users")
 				filters := []Filter{
 					{Field: "age", Operator: OpGt, Value: 18},
@@ -247,7 +247,7 @@ func TestQueryBuilder(t *testing.T) {
 		options  *QueryOptions
 		model    interface{}
 		wantErr  bool
-		validate func(t *testing.T, qb *QueryBuilder)
+		validate func(t *testing.T, qb *SqlBuilder)
 	}{
 		{
 			name: "valid fields with JSON tags",
@@ -256,7 +256,7 @@ func TestQueryBuilder(t *testing.T) {
 				{Field: "name", Operator: OpEq, Value: "mike"},
 			},
 			model: &TestUser{},
-			validate: func(t *testing.T, qb *QueryBuilder) {
+			validate: func(t *testing.T, qb *SqlBuilder) {
 				sql, args, err := qb.selectBuilder.ToSql()
 				assert.NoError(t, err)
 				assert.Contains(t, sql, "WHERE (age = ? AND name = ?)")
@@ -275,7 +275,7 @@ func TestQueryBuilder(t *testing.T) {
 				},
 			},
 			model: &TestUser{},
-			validate: func(t *testing.T, qb *QueryBuilder) {
+			validate: func(t *testing.T, qb *SqlBuilder) {
 				sql, args, err := qb.selectBuilder.ToSql()
 				assert.NoError(t, err)
 				assert.Contains(t, sql, "WHERE (age > ?)")
@@ -316,7 +316,7 @@ func TestQueryBuilder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			qb := NewQueryBuilder(context.Background()).WithSelect("users")
+			qb := NewSqlBuilder(context.Background()).WithSelect("users")
 			qb, err := qb.Apply(tt.filters, tt.options, tt.model)
 			if tt.wantErr {
 				assert.Error(t, err)
