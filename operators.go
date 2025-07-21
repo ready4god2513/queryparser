@@ -26,16 +26,17 @@ type QueryOptions struct {
 type Operator string
 
 const (
-	OpEq  Operator = "$eq"
-	OpNe  Operator = "$ne"
-	OpLt  Operator = "$lt"
-	OpLte Operator = "$lte"
-	OpGt  Operator = "$gt"
-	OpGte Operator = "$gte"
-	OpIn  Operator = "$in"
-	OpNin Operator = "$nin"
-	OpAnd Operator = "$and"
-	OpOr  Operator = "$or"
+	OpEq   Operator = "$eq"
+	OpNe   Operator = "$ne"
+	OpLt   Operator = "$lt"
+	OpLte  Operator = "$lte"
+	OpGt   Operator = "$gt"
+	OpGte  Operator = "$gte"
+	OpIn   Operator = "$in"
+	OpNin  Operator = "$nin"
+	OpAnd  Operator = "$and"
+	OpOr   Operator = "$or"
+	OpLike Operator = "$like"
 )
 
 // Filter represents a MongoDB-style filter

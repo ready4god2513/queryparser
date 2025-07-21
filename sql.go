@@ -135,6 +135,9 @@ func (qb *SqlBuilder) buildCondition(filter Filter, jsonToDB map[string]string) 
 		return squirrel.Eq{dbField: filter.Value}, nil
 	case OpNin:
 		return squirrel.NotEq{dbField: filter.Value}, nil
+	case OpLike:
+		// Use ILIKE for case-insensitive search in PostgreSQL
+		return squirrel.Expr(dbField+" ILIKE ?", "%"+filter.Value.(string)+"%"), nil
 	default:
 		return nil, fmt.Errorf("unsupported operator: %s", filter.Operator)
 	}
