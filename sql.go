@@ -44,23 +44,36 @@ func (qb *SqlBuilder) ToSql() (string, []interface{}, error) {
 
 // Apply applies the filters and options to the QueryBuilder
 func (qb *SqlBuilder) Apply(filters []Filter, options *QueryOptions, model interface{}) (*SqlBuilder, error) {
-	// Get JSON tags from the model
-	tags, err := getJSONTags(model)
+	// Get JSON tags and DB tags from the model
+	jsonTags, err := getJSONTags(model)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get JSON tags: %w", err)
 	}
 
+	dbTags, err := getDBTags(model)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get DB tags: %w", err)
+	}
+
+	// Create mapping from JSON field names to DB column names
+	jsonToDB := make(map[string]string)
+	for fieldName, jsonTag := range jsonTags {
+		if dbTag, exists := dbTags[fieldName]; exists {
+			jsonToDB[jsonTag] = dbTag
+		}
+	}
+
 	// Validate fields against JSON tags
-	if err := validateFields(filters, options, tags); err != nil {
+	if err := validateFields(filters, options, jsonTags); err != nil {
 		return nil, err
 	}
 
 	if qb.selectBuilder != (squirrel.SelectBuilder{}) {
-		qb, err := qb.applySelectFilters(filters)
+		qb, err := qb.applySelectFilters(filters, jsonToDB)
 		if err != nil {
 			return nil, err
 		}
-		return qb.applyOptions(options)
+		return qb.applyOptions(options, jsonToDB)
 	}
 	// Add support for other query types as needed
 	return qb, nil
@@ -79,11 +92,11 @@ func (qb *SqlBuilder) DeleteBuilder() squirrel.DeleteBuilder {
 }
 
 // applySelectFilters applies filters to a SELECT query
-func (qb *SqlBuilder) applySelectFilters(filters []Filter) (*SqlBuilder, error) {
+func (qb *SqlBuilder) applySelectFilters(filters []Filter, jsonToDB map[string]string) (*SqlBuilder, error) {
 	conditions := make([]squirrel.Sqlizer, 0, len(filters))
 
 	for _, filter := range filters {
-		condition, err := qb.buildCondition(filter)
+		condition, err := qb.buildCondition(filter, jsonToDB)
 		if err != nil {
 			return nil, err
 		}
@@ -98,31 +111,37 @@ func (qb *SqlBuilder) applySelectFilters(filters []Filter) (*SqlBuilder, error) 
 }
 
 // buildCondition converts a Filter into a Squirrel condition
-func (qb *SqlBuilder) buildCondition(filter Filter) (squirrel.Sqlizer, error) {
+func (qb *SqlBuilder) buildCondition(filter Filter, jsonToDB map[string]string) (squirrel.Sqlizer, error) {
+	// Map JSON field name to DB column name
+	dbField := filter.Field
+	if mappedField, exists := jsonToDB[filter.Field]; exists {
+		dbField = mappedField
+	}
+
 	switch filter.Operator {
 	case OpEq:
-		return squirrel.Eq{filter.Field: filter.Value}, nil
+		return squirrel.Eq{dbField: filter.Value}, nil
 	case OpNe:
-		return squirrel.NotEq{filter.Field: filter.Value}, nil
+		return squirrel.NotEq{dbField: filter.Value}, nil
 	case OpLt:
-		return squirrel.Lt{filter.Field: filter.Value}, nil
+		return squirrel.Lt{dbField: filter.Value}, nil
 	case OpLte:
-		return squirrel.LtOrEq{filter.Field: filter.Value}, nil
+		return squirrel.LtOrEq{dbField: filter.Value}, nil
 	case OpGt:
-		return squirrel.Gt{filter.Field: filter.Value}, nil
+		return squirrel.Gt{dbField: filter.Value}, nil
 	case OpGte:
-		return squirrel.GtOrEq{filter.Field: filter.Value}, nil
+		return squirrel.GtOrEq{dbField: filter.Value}, nil
 	case OpIn:
-		return squirrel.Eq{filter.Field: filter.Value}, nil
+		return squirrel.Eq{dbField: filter.Value}, nil
 	case OpNin:
-		return squirrel.NotEq{filter.Field: filter.Value}, nil
+		return squirrel.NotEq{dbField: filter.Value}, nil
 	default:
 		return nil, fmt.Errorf("unsupported operator: %s", filter.Operator)
 	}
 }
 
 // applyOptions applies sorting and pagination options to the query
-func (qb *SqlBuilder) applyOptions(options *QueryOptions) (*SqlBuilder, error) {
+func (qb *SqlBuilder) applyOptions(options *QueryOptions, jsonToDB map[string]string) (*SqlBuilder, error) {
 	if options == nil {
 		return qb, nil
 	}
@@ -130,10 +149,16 @@ func (qb *SqlBuilder) applyOptions(options *QueryOptions) (*SqlBuilder, error) {
 	// Apply sorting
 	if len(options.Sort) > 0 {
 		for field, direction := range options.Sort {
+			// Map JSON field name to DB column name
+			dbField := field
+			if mappedField, exists := jsonToDB[field]; exists {
+				dbField = mappedField
+			}
+
 			if direction == SortDesc {
-				qb.selectBuilder = qb.selectBuilder.OrderBy(field + " DESC")
+				qb.selectBuilder = qb.selectBuilder.OrderBy(dbField + " DESC")
 			} else {
-				qb.selectBuilder = qb.selectBuilder.OrderBy(field + " ASC")
+				qb.selectBuilder = qb.selectBuilder.OrderBy(dbField + " ASC")
 			}
 		}
 	}

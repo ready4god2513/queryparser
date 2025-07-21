@@ -159,6 +159,48 @@ func getJSONTagsRecursive(val reflect.Value, tags map[string]string) map[string]
 	return tags
 }
 
+// getDBTags returns a map of field names to their DB tags
+func getDBTags(v interface{}) (map[string]string, error) {
+	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	if val.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("expected struct or pointer to struct, got %v", val.Kind())
+	}
+
+	tags := make(map[string]string)
+	return getDBTagsRecursive(val, tags), nil
+}
+
+// getDBTagsRecursive recursively extracts DB tags from a struct and its embedded structs
+func getDBTagsRecursive(val reflect.Value, tags map[string]string) map[string]string {
+	typ := val.Type()
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		fieldValue := val.Field(i)
+
+		// Handle embedded structs
+		if field.Anonymous && fieldValue.Kind() == reflect.Struct {
+			getDBTagsRecursive(fieldValue, tags)
+			continue
+		}
+
+		tag := field.Tag.Get("db")
+		if tag == "" {
+			continue
+		}
+		// Handle db tag with options (e.g., "name,omitempty")
+		parts := strings.Split(tag, ",")
+		dbName := parts[0]
+		if dbName == "-" {
+			continue
+		}
+		tags[field.Name] = dbName
+	}
+	return tags
+}
+
 // validateFields validates that all fields in filters and options exist in the struct's JSON tags
 func validateFields(filters []Filter, options *QueryOptions, tags map[string]string) error {
 	// Validate filter fields
