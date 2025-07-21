@@ -183,7 +183,8 @@ func NewSqlBuilder(ctx context.Context) *SqlBuilder {
 
 // WithSelect sets up the QueryBuilder for SELECT operations
 func (qb *SqlBuilder) WithSelect(table string) *SqlBuilder {
-	qb.selectBuilder = squirrel.Select("*").From(table)
+	psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+	qb.selectBuilder = psql.Select("*").From(table)
 	qb.queryType = selectQuery
 	return qb
 }

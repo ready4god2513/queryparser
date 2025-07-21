@@ -56,7 +56,7 @@ func TestToSql(t *testing.T) {
 				qb.Apply(filters, nil, &TestUser{})
 				return qb
 			},
-			wantSQL:  "SELECT * FROM users WHERE (age > ?)",
+			wantSQL:  "SELECT * FROM users WHERE (age > $1)",
 			wantArgs: []interface{}{18},
 			wantErr:  false,
 		},
@@ -259,7 +259,7 @@ func TestQueryBuilder(t *testing.T) {
 			validate: func(t *testing.T, qb *SqlBuilder) {
 				sql, args, err := qb.selectBuilder.ToSql()
 				assert.NoError(t, err)
-				assert.Contains(t, sql, "WHERE (age = ? AND name = ?)")
+				assert.Contains(t, sql, "WHERE (age = $1 AND name = $2)")
 				assert.Equal(t, []interface{}{20, "mike"}, args)
 			},
 		},
@@ -278,7 +278,7 @@ func TestQueryBuilder(t *testing.T) {
 			validate: func(t *testing.T, qb *SqlBuilder) {
 				sql, args, err := qb.selectBuilder.ToSql()
 				assert.NoError(t, err)
-				assert.Contains(t, sql, "WHERE (age > ?)")
+				assert.Contains(t, sql, "WHERE (age > $1)")
 				assert.Contains(t, sql, "ORDER BY age DESC, name ASC")
 				assert.Equal(t, []interface{}{20}, args)
 			},
@@ -328,8 +328,4 @@ func TestQueryBuilder(t *testing.T) {
 			}
 		})
 	}
-}
-
-func intPtr(i int) *int {
-	return &i
 }
