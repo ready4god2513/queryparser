@@ -128,9 +128,22 @@ func getJSONTags(v interface{}) (map[string]string, error) {
 	}
 
 	tags := make(map[string]string)
+	return getJSONTagsRecursive(val, tags), nil
+}
+
+// getJSONTagsRecursive recursively extracts JSON tags from a struct and its embedded structs
+func getJSONTagsRecursive(val reflect.Value, tags map[string]string) map[string]string {
 	typ := val.Type()
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
+		fieldValue := val.Field(i)
+
+		// Handle embedded structs
+		if field.Anonymous && fieldValue.Kind() == reflect.Struct {
+			getJSONTagsRecursive(fieldValue, tags)
+			continue
+		}
+
 		tag := field.Tag.Get("json")
 		if tag == "" {
 			continue
@@ -143,7 +156,7 @@ func getJSONTags(v interface{}) (map[string]string, error) {
 		}
 		tags[field.Name] = jsonName
 	}
-	return tags, nil
+	return tags
 }
 
 // validateFields validates that all fields in filters and options exist in the struct's JSON tags
