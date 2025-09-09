@@ -41,7 +41,7 @@ func ListUsers(c echo.Context) error {
     // Get the filter and options from query parameters
     filter := c.QueryParam("filter")
     options := c.QueryParam("options")
-    
+
     // Parse the filter and options
     filters, err := queryparser.ParseFilter(filter)
     if err != nil {
@@ -49,17 +49,17 @@ func ListUsers(c echo.Context) error {
             "error": "Invalid filter format",
         })
     }
-    
+
     queryOptions, err := queryparser.ParseQueryOptions(options)
     if err != nil {
         return c.JSON(http.StatusBadRequest, map[string]string{
             "error": "Invalid options format",
         })
     }
-    
+
     // Create a new query builder
-    qb := queryparser.NewQueryBuilder(c.Request().Context()).WithSelect("users")
-    
+    qb := queryparser.NewSqlBuilder(c.Request().Context()).WithSelect("users")
+
     // Apply the filters and options, passing the model for validation
     qb, err = qb.Apply(filters, queryOptions, &User{})
     if err != nil {
@@ -67,7 +67,7 @@ func ListUsers(c echo.Context) error {
             "error": err.Error(),
         })
     }
-    
+
     // Get the SQL and arguments
     sql, args, err := qb.selectBuilder.ToSql()
     if err != nil {
@@ -75,7 +75,7 @@ func ListUsers(c echo.Context) error {
             "error": "Failed to build SQL",
         })
     }
-    
+
     // Execute the query with your database
     rows, err := db.QueryContext(c.Request().Context(), sql, args...)
     if err != nil {
@@ -84,7 +84,7 @@ func ListUsers(c echo.Context) error {
         })
     }
     defer rows.Close()
-    
+
     // Process the results...
     var users []User
     for rows.Next() {
@@ -96,7 +96,7 @@ func ListUsers(c echo.Context) error {
         }
         users = append(users, user)
     }
-    
+
     return c.JSON(http.StatusOK, users)
 }
 ```
@@ -109,14 +109,14 @@ The filter syntax follows MongoDB's query syntax:
 
 ```json
 {
-    "field": "value",           // Implicit $eq operator
-    "age": {"$gt": 20},        // Greater than
-    "age": {"$lt": 20},        // Less than
-    "age": {"$gte": 20},       // Greater than or equal
-    "age": {"$lte": 20},       // Less than or equal
-    "age": {"$ne": 20},        // Not equal
-    "age": {"$in": [20, 30]},  // In array
-    "age": {"$nin": [20, 30]}  // Not in array
+  "field": "value", // Implicit $eq operator
+  "age": { "$gt": 20 }, // Greater than
+  "age": { "$lt": 20 }, // Less than
+  "age": { "$gte": 20 }, // Greater than or equal
+  "age": { "$lte": 20 }, // Less than or equal
+  "age": { "$ne": 20 }, // Not equal
+  "age": { "$in": [20, 30] }, // In array
+  "age": { "$nin": [20, 30] } // Not in array
 }
 ```
 
@@ -126,10 +126,7 @@ You can combine conditions using `$or`:
 
 ```json
 {
-    "$or": [
-        {"age": {"$gt": 20}},
-        {"name": "mike"}
-    ]
+  "$or": [{ "age": { "$gt": 20 } }, { "name": "mike" }]
 }
 ```
 
@@ -139,13 +136,60 @@ Use the `options` parameter to specify sorting and pagination:
 
 ```json
 {
-    "sort": {
-        "age": "desc",
-        "name": "asc"
-    },
-    "limit": 10,
-    "offset": 20
+  "sort": {
+    "age": "desc",
+    "name": "asc"
+  },
+  "limit": 10,
+  "offset": 20
 }
+```
+
+## Placeholder Formats
+
+The query builder supports different SQL placeholder formats to work with various databases:
+
+### Using Default Format (Dollar - PostgreSQL)
+
+```go
+// Creates a query builder with default Dollar format ($1, $2, etc.)
+qb := queryparser.NewSqlBuilder(ctx).WithSelect("users")
+// Generates SQL like: SELECT * FROM users WHERE name = $1
+```
+
+### Using Question Format (MySQL/SQLite)
+
+```go
+// Creates a query builder with Question format (?, ?, etc.)
+qb := queryparser.NewSqlBuilderWithPlaceholderFormat(ctx, squirrel.Question)
+qb.WithSelect("users")
+// Generates SQL like: SELECT * FROM users WHERE name = ?
+```
+
+### Using AtP Format (SQL Server)
+
+```go
+// Creates a query builder with AtP format (@p1, @p2, etc.)
+qb := queryparser.NewSqlBuilderWithPlaceholderFormat(ctx, squirrel.AtP)
+qb.WithSelect("users")
+// Generates SQL like: SELECT * FROM users WHERE name = @p1
+```
+
+### Changing Format After Creation
+
+```go
+qb := queryparser.NewSqlBuilder(ctx)
+qb.SetPlaceholderFormat(squirrel.Question)
+qb.WithSelect("users")
+// Now uses Question format instead of default Dollar format
+```
+
+### Getting Current Format
+
+```go
+qb := queryparser.NewSqlBuilder(ctx)
+format := qb.GetPlaceholderFormat()
+// Returns the current placeholder format
 ```
 
 ## Security Features
@@ -158,16 +202,19 @@ Use the `options` parameter to specify sorting and pagination:
 ## Best Practices
 
 1. **Model Definition**:
+
    - Always use JSON tags for your model fields
    - Mark private fields with `json:"-"`
    - Use descriptive field names that match your database columns
 
 2. **Error Handling**:
+
    - Always check for errors when parsing filters and options
    - Return appropriate HTTP status codes for different error types
    - Provide clear error messages to API consumers
 
 3. **Performance**:
+
    - Use appropriate indexes on your database columns
    - Limit the number of records returned using pagination
    - Consider using cursor-based pagination for large datasets
@@ -180,21 +227,25 @@ Use the `options` parameter to specify sorting and pagination:
 ## Example API Requests
 
 1. Basic filtering:
+
 ```
 GET /users?filter={"age":{"$gt":20},"name":"mike"}
 ```
 
 2. Complex filtering with sorting:
+
 ```
 GET /users?filter={"$or":[{"age":{"$gt":20}},{"name":"mike"}]}&options={"sort":{"age":"desc"}}
 ```
 
 3. Pagination:
+
 ```
 GET /users?options={"limit":10,"offset":0}
 ```
 
 4. Combined filtering, sorting, and pagination:
+
 ```
 GET /users?filter={"age":{"$gt":20}}&options={"sort":{"age":"desc"},"limit":10,"offset":20}
 ```
@@ -205,4 +256,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.

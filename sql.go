@@ -17,12 +17,13 @@ const (
 // SqlBuilder wraps Squirrel query builders and provides methods to apply
 // filters, options, and model to the query.
 type SqlBuilder struct {
-	queryType     int64
-	selectBuilder squirrel.SelectBuilder
-	updateBuilder squirrel.UpdateBuilder
-	deleteBuilder squirrel.DeleteBuilder
-	insertBuilder squirrel.InsertBuilder
-	ctx           context.Context
+	queryType         int64
+	selectBuilder     squirrel.SelectBuilder
+	updateBuilder     squirrel.UpdateBuilder
+	deleteBuilder     squirrel.DeleteBuilder
+	insertBuilder     squirrel.InsertBuilder
+	ctx               context.Context
+	placeholderFormat squirrel.PlaceholderFormat
 }
 
 // ToSql returns the SQL query string and arguments from the underlying Squirrel
@@ -89,6 +90,23 @@ func (qb *SqlBuilder) UpdateBuilder() squirrel.UpdateBuilder {
 
 func (qb *SqlBuilder) DeleteBuilder() squirrel.DeleteBuilder {
 	return qb.deleteBuilder
+}
+
+// SetPlaceholderFormat sets the placeholder format for the SqlBuilder
+//
+// Example:
+//
+//	qb := NewSqlBuilder(ctx)
+//	qb.SetPlaceholderFormat(squirrel.Question)
+//	qb.WithSelect("users")
+//	// Now generates SQL like: SELECT * FROM users WHERE name = ?
+func (qb *SqlBuilder) SetPlaceholderFormat(format squirrel.PlaceholderFormat) {
+	qb.placeholderFormat = format
+}
+
+// GetPlaceholderFormat returns the current placeholder format
+func (qb *SqlBuilder) GetPlaceholderFormat() squirrel.PlaceholderFormat {
+	return qb.placeholderFormat
 }
 
 // applySelectFilters applies filters to a SELECT query
@@ -177,16 +195,41 @@ func (qb *SqlBuilder) applyOptions(options *QueryOptions, jsonToDB map[string]st
 	return qb, nil
 }
 
-// NewSqlBuilder creates a new SqlBuilder instance
+// NewSqlBuilder creates a new SqlBuilder instance with default Dollar placeholder format
+//
+// Example:
+//
+//	qb := NewSqlBuilder(ctx)
+//	qb.WithSelect("users")
+//	// Generates SQL like: SELECT * FROM users WHERE name = $1
 func NewSqlBuilder(ctx context.Context) *SqlBuilder {
 	return &SqlBuilder{
-		ctx: ctx,
+		ctx:               ctx,
+		placeholderFormat: squirrel.Dollar,
+	}
+}
+
+// NewSqlBuilderWithPlaceholderFormat creates a new SqlBuilder instance with specified placeholder format
+//
+// Example:
+//
+//	qb := NewSqlBuilderWithPlaceholderFormat(ctx, squirrel.Question)
+//	qb.WithSelect("users")
+//	// Generates SQL like: SELECT * FROM users WHERE name = ?
+//
+//	qb := NewSqlBuilderWithPlaceholderFormat(ctx, squirrel.AtP)
+//	qb.WithSelect("users")
+//	// Generates SQL like: SELECT * FROM users WHERE name = @p1
+func NewSqlBuilderWithPlaceholderFormat(ctx context.Context, placeholderFormat squirrel.PlaceholderFormat) *SqlBuilder {
+	return &SqlBuilder{
+		ctx:               ctx,
+		placeholderFormat: placeholderFormat,
 	}
 }
 
 // WithSelect sets up the QueryBuilder for SELECT operations
 func (qb *SqlBuilder) WithSelect(table string) *SqlBuilder {
-	psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+	psql := squirrel.StatementBuilder.PlaceholderFormat(qb.placeholderFormat)
 	qb.selectBuilder = psql.Select("*").From(table)
 	qb.queryType = selectQuery
 	return qb
@@ -194,21 +237,24 @@ func (qb *SqlBuilder) WithSelect(table string) *SqlBuilder {
 
 // WithUpdate sets up the QueryBuilder for UPDATE operations
 func (qb *SqlBuilder) WithUpdate(table string) *SqlBuilder {
-	qb.updateBuilder = squirrel.Update(table)
+	psql := squirrel.StatementBuilder.PlaceholderFormat(qb.placeholderFormat)
+	qb.updateBuilder = psql.Update(table)
 	qb.queryType = updateQuery
 	return qb
 }
 
 // WithDelete sets up the QueryBuilder for DELETE operations
 func (qb *SqlBuilder) WithDelete(table string) *SqlBuilder {
-	qb.deleteBuilder = squirrel.Delete(table)
+	psql := squirrel.StatementBuilder.PlaceholderFormat(qb.placeholderFormat)
+	qb.deleteBuilder = psql.Delete(table)
 	qb.queryType = deleteQuery
 	return qb
 }
 
 // WithInsert sets up the QueryBuilder for INSERT operations
 func (qb *SqlBuilder) WithInsert(table string) *SqlBuilder {
-	qb.insertBuilder = squirrel.Insert(table)
+	psql := squirrel.StatementBuilder.PlaceholderFormat(qb.placeholderFormat)
+	qb.insertBuilder = psql.Insert(table)
 	qb.queryType = insertQuery
 	return qb
 }

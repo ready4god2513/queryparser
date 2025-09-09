@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -328,4 +329,81 @@ func TestQueryBuilder(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPlaceholderFormat(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name              string
+		placeholderFormat squirrel.PlaceholderFormat
+		expectedSQL       string
+		expectedArgs      []interface{}
+	}{
+		{
+			name:              "dollar placeholder format",
+			placeholderFormat: squirrel.Dollar,
+			expectedSQL:       "SELECT * FROM users WHERE (name = $1)",
+			expectedArgs:      []interface{}{"John"},
+		},
+		{
+			name:              "question placeholder format",
+			placeholderFormat: squirrel.Question,
+			expectedSQL:       "SELECT * FROM users WHERE (name = ?)",
+			expectedArgs:      []interface{}{"John"},
+		},
+		{
+			name:              "at placeholder format",
+			placeholderFormat: squirrel.AtP,
+			expectedSQL:       "SELECT * FROM users WHERE (name = @p1)",
+			expectedArgs:      []interface{}{"John"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test NewSqlBuilderWithPlaceholderFormat
+			qb := NewSqlBuilderWithPlaceholderFormat(ctx, tt.placeholderFormat)
+			assert.Equal(t, tt.placeholderFormat, qb.GetPlaceholderFormat())
+
+			qb.WithSelect("users")
+			filters := []Filter{
+				{Field: "name", Operator: OpEq, Value: "John"},
+			}
+			user := TestUser{}
+
+			qb, err := qb.Apply(filters, nil, user)
+			assert.NoError(t, err)
+
+			sql, args, err := qb.ToSql()
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedSQL, sql)
+			assert.Equal(t, tt.expectedArgs, args)
+		})
+	}
+}
+
+func TestSetPlaceholderFormat(t *testing.T) {
+	ctx := context.Background()
+
+	// Test changing placeholder format after creation
+	qb := NewSqlBuilder(ctx)
+	assert.Equal(t, squirrel.Dollar, qb.GetPlaceholderFormat())
+
+	qb.SetPlaceholderFormat(squirrel.Question)
+	assert.Equal(t, squirrel.Question, qb.GetPlaceholderFormat())
+
+	qb.WithSelect("users")
+	filters := []Filter{
+		{Field: "name", Operator: OpEq, Value: "John"},
+	}
+	user := TestUser{}
+
+	qb, err := qb.Apply(filters, nil, user)
+	assert.NoError(t, err)
+
+	sql, args, err := qb.ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, "SELECT * FROM users WHERE (name = ?)", sql)
+	assert.Equal(t, []interface{}{"John"}, args)
 }
