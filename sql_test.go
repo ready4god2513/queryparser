@@ -32,7 +32,7 @@ func TestToSql(t *testing.T) {
 		name     string
 		builder  func() *SqlBuilder
 		wantSQL  string
-		wantArgs []interface{}
+		wantArgs []any
 		wantErr  bool
 	}{
 		{
@@ -58,7 +58,7 @@ func TestToSql(t *testing.T) {
 				return qb
 			},
 			wantSQL:  "SELECT * FROM users WHERE (age > $1)",
-			wantArgs: []interface{}{18},
+			wantArgs: []any{18},
 			wantErr:  false,
 		},
 	}
@@ -139,7 +139,7 @@ func TestParseFilter(t *testing.T) {
 			validate: func(t *testing.T, filters []Filter) {
 				assert.Equal(t, "age", filters[0].Field)
 				assert.Equal(t, OpIn, filters[0].Operator)
-				assert.Equal(t, []interface{}{float64(20), float64(1)}, filters[0].Value)
+				assert.Equal(t, []any{float64(20), float64(1)}, filters[0].Value)
 			},
 		},
 		{
@@ -246,7 +246,7 @@ func TestQueryBuilder(t *testing.T) {
 		name     string
 		filters  []Filter
 		options  *QueryOptions
-		model    interface{}
+		model    any
 		wantErr  bool
 		validate func(t *testing.T, qb *SqlBuilder)
 	}{
@@ -261,7 +261,7 @@ func TestQueryBuilder(t *testing.T) {
 				sql, args, err := qb.selectBuilder.ToSql()
 				assert.NoError(t, err)
 				assert.Contains(t, sql, "WHERE (age = $1 AND name = $2)")
-				assert.Equal(t, []interface{}{20, "mike"}, args)
+				assert.Equal(t, []any{20, "mike"}, args)
 			},
 		},
 		{
@@ -281,7 +281,7 @@ func TestQueryBuilder(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, sql, "WHERE (age > $1)")
 				assert.Contains(t, sql, "ORDER BY age DESC, name ASC")
-				assert.Equal(t, []interface{}{20}, args)
+				assert.Equal(t, []any{20}, args)
 			},
 		},
 		{
@@ -338,25 +338,25 @@ func TestPlaceholderFormat(t *testing.T) {
 		name              string
 		placeholderFormat squirrel.PlaceholderFormat
 		expectedSQL       string
-		expectedArgs      []interface{}
+		expectedArgs      []any
 	}{
 		{
 			name:              "dollar placeholder format",
 			placeholderFormat: squirrel.Dollar,
 			expectedSQL:       "SELECT * FROM users WHERE (name = $1)",
-			expectedArgs:      []interface{}{"John"},
+			expectedArgs:      []any{"John"},
 		},
 		{
 			name:              "question placeholder format",
 			placeholderFormat: squirrel.Question,
 			expectedSQL:       "SELECT * FROM users WHERE (name = ?)",
-			expectedArgs:      []interface{}{"John"},
+			expectedArgs:      []any{"John"},
 		},
 		{
 			name:              "at placeholder format",
 			placeholderFormat: squirrel.AtP,
 			expectedSQL:       "SELECT * FROM users WHERE (name = @p1)",
-			expectedArgs:      []interface{}{"John"},
+			expectedArgs:      []any{"John"},
 		},
 	}
 
@@ -405,5 +405,5 @@ func TestSetPlaceholderFormat(t *testing.T) {
 	sql, args, err := qb.ToSql()
 	assert.NoError(t, err)
 	assert.Equal(t, "SELECT * FROM users WHERE (name = ?)", sql)
-	assert.Equal(t, []interface{}{"John"}, args)
+	assert.Equal(t, []any{"John"}, args)
 }

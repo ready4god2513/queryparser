@@ -14,7 +14,7 @@ func NewElasticBuilder(ss *elastic.SearchService) *ElasticBuilder {
 
 // Apply will create a bool query and apply the filters to it.  It will then
 // return the query which can be used to execute the search.
-func (eb *ElasticBuilder) Apply(filters []Filter, options *QueryOptions, model interface{}) (elastic.Query, error) {
+func (eb *ElasticBuilder) Apply(filters []Filter, options *QueryOptions, model any) (elastic.Query, error) {
 	q := elastic.NewBoolQuery()
 
 	for _, filter := range filters {
@@ -33,9 +33,9 @@ func (eb *ElasticBuilder) Apply(filters []Filter, options *QueryOptions, model i
 		case OpGte:
 			subQuery = elastic.NewRangeQuery(filter.Field).Gte(filter.Value)
 		case OpIn:
-			subQuery = elastic.NewTermsQuery(filter.Field, filter.Value.([]interface{})...)
+			subQuery = elastic.NewTermsQuery(filter.Field, filter.Value.([]any)...)
 		case OpNin:
-			subQuery = elastic.NewBoolQuery().MustNot(elastic.NewTermsQuery(filter.Field, filter.Value.([]interface{})...))
+			subQuery = elastic.NewBoolQuery().MustNot(elastic.NewTermsQuery(filter.Field, filter.Value.([]any)...))
 		case OpAnd:
 			subQuery = elastic.NewBoolQuery().Must(elastic.NewTermQuery(filter.Field, filter.Value))
 		case OpOr:

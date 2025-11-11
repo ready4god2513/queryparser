@@ -28,7 +28,7 @@ type SqlBuilder struct {
 
 // ToSql returns the SQL query string and arguments from the underlying Squirrel
 // builder
-func (qb *SqlBuilder) ToSql() (string, []interface{}, error) {
+func (qb *SqlBuilder) ToSql() (string, []any, error) {
 	switch qb.queryType {
 	case selectQuery:
 		return qb.selectBuilder.ToSql()
@@ -44,7 +44,7 @@ func (qb *SqlBuilder) ToSql() (string, []interface{}, error) {
 }
 
 // Apply applies the filters and options to the QueryBuilder
-func (qb *SqlBuilder) Apply(filters []Filter, options *QueryOptions, model interface{}) (*SqlBuilder, error) {
+func (qb *SqlBuilder) Apply(filters []Filter, options *QueryOptions, model any) (*SqlBuilder, error) {
 	// Get JSON tags and DB tags from the model
 	jsonTags, err := getJSONTags(model)
 	if err != nil {

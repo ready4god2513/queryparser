@@ -43,12 +43,12 @@ const (
 type Filter struct {
 	Field    string
 	Operator Operator
-	Value    interface{}
+	Value    any
 }
 
 // ParseFilter parses a JSON string into a Filter
 func ParseFilter(jsonStr string) ([]Filter, error) {
-	var rawFilter map[string]interface{}
+	var rawFilter map[string]any
 	if err := json.Unmarshal([]byte(jsonStr), &rawFilter); err != nil {
 		return nil, fmt.Errorf("failed to parse filter JSON: %w", err)
 	}
@@ -57,13 +57,13 @@ func ParseFilter(jsonStr string) ([]Filter, error) {
 }
 
 // parseFilters recursively parses the filter map into Filter structs
-func parseFilters(filter map[string]interface{}) ([]Filter, error) {
+func parseFilters(filter map[string]any) ([]Filter, error) {
 	var filters []Filter
 
 	// Handle special operators first
-	if orFilters, ok := filter[string(OpOr)].([]interface{}); ok {
+	if orFilters, ok := filter[string(OpOr)].([]any); ok {
 		for _, f := range orFilters {
-			if subFilter, ok := f.(map[string]interface{}); ok {
+			if subFilter, ok := f.(map[string]any); ok {
 				subFilters, err := parseFilters(subFilter)
 				if err != nil {
 					return nil, err
@@ -81,7 +81,7 @@ func parseFilters(filter map[string]interface{}) ([]Filter, error) {
 		}
 
 		switch v := value.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			// Handle operators like $eq, $gt, etc.
 			for op, val := range v {
 				operator := Operator(op)
@@ -119,7 +119,7 @@ func ParseQueryOptions(jsonStr string) (*QueryOptions, error) {
 }
 
 // getJSONTags returns a map of field names to their JSON tags
-func getJSONTags(v interface{}) (map[string]string, error) {
+func getJSONTags(v any) (map[string]string, error) {
 	val := reflect.ValueOf(v)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -161,7 +161,7 @@ func getJSONTagsRecursive(val reflect.Value, tags map[string]string) map[string]
 }
 
 // getDBTags returns a map of field names to their DB tags
-func getDBTags(v interface{}) (map[string]string, error) {
+func getDBTags(v any) (map[string]string, error) {
 	val := reflect.ValueOf(v)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()

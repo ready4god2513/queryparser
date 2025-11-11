@@ -67,7 +67,7 @@ func TestElasticBuilder(t *testing.T) {
 		{
 			name: "in filter",
 			filters: []Filter{
-				{Field: "age", Operator: OpIn, Value: []interface{}{25, 30, 35}},
+				{Field: "age", Operator: OpIn, Value: []any{25, 30, 35}},
 			},
 			want:    `{"bool":{"must":{"terms":{"age":[25,30,35]}}}}`,
 			wantErr: false,
@@ -75,7 +75,7 @@ func TestElasticBuilder(t *testing.T) {
 		{
 			name: "not in filter",
 			filters: []Filter{
-				{Field: "age", Operator: OpNin, Value: []interface{}{25, 30, 35}},
+				{Field: "age", Operator: OpNin, Value: []any{25, 30, 35}},
 			},
 			want:    `{"bool":{"must":{"bool":{"must_not":{"terms":{"age":[25,30,35]}}}}}}`,
 			wantErr: false,
