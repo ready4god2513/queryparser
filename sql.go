@@ -130,6 +130,37 @@ func (qb *SqlBuilder) applySelectFilters(filters []Filter, jsonToDB map[string]s
 
 // buildCondition converts a Filter into a Squirrel condition
 func (qb *SqlBuilder) buildCondition(filter Filter, jsonToDB map[string]string) (squirrel.Sqlizer, error) {
+	// Handle $or and $and operators with nested filters
+	if filter.Operator == OpOr {
+		if len(filter.Filters) == 0 {
+			return nil, fmt.Errorf("$or operator requires nested filters")
+		}
+		orConditions := make([]squirrel.Sqlizer, 0, len(filter.Filters))
+		for _, nestedFilter := range filter.Filters {
+			condition, err := qb.buildCondition(nestedFilter, jsonToDB)
+			if err != nil {
+				return nil, err
+			}
+			orConditions = append(orConditions, condition)
+		}
+		return squirrel.Or(orConditions), nil
+	}
+
+	if filter.Operator == OpAnd {
+		if len(filter.Filters) == 0 {
+			return nil, fmt.Errorf("$and operator requires nested filters")
+		}
+		andConditions := make([]squirrel.Sqlizer, 0, len(filter.Filters))
+		for _, nestedFilter := range filter.Filters {
+			condition, err := qb.buildCondition(nestedFilter, jsonToDB)
+			if err != nil {
+				return nil, err
+			}
+			andConditions = append(andConditions, condition)
+		}
+		return squirrel.And(andConditions), nil
+	}
+
 	// Map JSON field name to DB column name
 	dbField := filter.Field
 	if mappedField, exists := jsonToDB[filter.Field]; exists {

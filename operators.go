@@ -44,6 +44,7 @@ type Filter struct {
 	Field    string
 	Operator Operator
 	Value    any
+	Filters  []Filter // For nested filters like $or and $and
 }
 
 // ParseFilter parses a JSON string into a Filter
@@ -206,6 +207,14 @@ func getDBTagsRecursive(val reflect.Value, tags map[string]string) map[string]st
 func validateFields(filters []Filter, options *QueryOptions, tags map[string]string) error {
 	// Validate filter fields
 	for _, filter := range filters {
+		// Handle nested filters for $or and $and operators
+		if filter.Operator == OpOr || filter.Operator == OpAnd {
+			if err := validateFields(filter.Filters, nil, tags); err != nil {
+				return err
+			}
+			continue
+		}
+
 		// Check if the field exists in the JSON tags
 		found := false
 		for _, jsonTag := range tags {

@@ -81,19 +81,31 @@ func TestElasticBuilder(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "and filter",
+			name: "or filter with nested conditions",
 			filters: []Filter{
-				{Field: "age", Operator: OpAnd, Value: 25},
+				{
+					Operator: OpOr,
+					Filters: []Filter{
+						{Field: "age", Operator: OpGt, Value: 30},
+						{Field: "age", Operator: OpLt, Value: 20},
+					},
+				},
 			},
-			want:    `{"bool":{"must":{"bool":{"must":{"term":{"age":25}}}}}}`,
+			want:    `{"bool":{"must":{"bool":{"minimum_should_match":"1","should":[{"range":{"age":{"from":30,"include_lower":false,"include_upper":true,"to":null}}},{"range":{"age":{"from":null,"include_lower":true,"include_upper":false,"to":20}}}]}}}}`,
 			wantErr: false,
 		},
 		{
-			name: "or filter",
+			name: "and filter with nested conditions",
 			filters: []Filter{
-				{Field: "age", Operator: OpOr, Value: 25},
+				{
+					Operator: OpAnd,
+					Filters: []Filter{
+						{Field: "age", Operator: OpGt, Value: 20},
+						{Field: "age", Operator: OpLt, Value: 30},
+					},
+				},
 			},
-			want:    `{"bool":{"must":{"bool":{"should":{"term":{"age":25}}}}}}`,
+			want:    `{"bool":{"must":{"bool":{"must":[{"range":{"age":{"from":20,"include_lower":false,"include_upper":true,"to":null}}},{"range":{"age":{"from":null,"include_lower":true,"include_upper":false,"to":30}}}]}}}}`,
 			wantErr: false,
 		},
 		{

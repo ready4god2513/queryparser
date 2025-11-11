@@ -18,31 +18,64 @@ func (eb *ElasticBuilder) Apply(filters []Filter, options *QueryOptions, model a
 	q := elastic.NewBoolQuery()
 
 	for _, filter := range filters {
-		var subQuery elastic.Query
-		switch filter.Operator {
-		case OpEq:
-			subQuery = elastic.NewTermQuery(filter.Field, filter.Value)
-		case OpNe:
-			subQuery = elastic.NewBoolQuery().MustNot(elastic.NewTermQuery(filter.Field, filter.Value))
-		case OpLt:
-			subQuery = elastic.NewRangeQuery(filter.Field).Lt(filter.Value)
-		case OpLte:
-			subQuery = elastic.NewRangeQuery(filter.Field).Lte(filter.Value)
-		case OpGt:
-			subQuery = elastic.NewRangeQuery(filter.Field).Gt(filter.Value)
-		case OpGte:
-			subQuery = elastic.NewRangeQuery(filter.Field).Gte(filter.Value)
-		case OpIn:
-			subQuery = elastic.NewTermsQuery(filter.Field, filter.Value.([]any)...)
-		case OpNin:
-			subQuery = elastic.NewBoolQuery().MustNot(elastic.NewTermsQuery(filter.Field, filter.Value.([]any)...))
-		case OpAnd:
-			subQuery = elastic.NewBoolQuery().Must(elastic.NewTermQuery(filter.Field, filter.Value))
-		case OpOr:
-			subQuery = elastic.NewBoolQuery().Should(elastic.NewTermQuery(filter.Field, filter.Value))
+		subQuery, err := eb.buildQuery(filter)
+		if err != nil {
+			return nil, err
 		}
 		q.Must(subQuery)
 	}
 
 	return q, nil
+}
+
+// buildQuery recursively builds elastic queries from filters
+func (eb *ElasticBuilder) buildQuery(filter Filter) (elastic.Query, error) {
+	// Handle $or operator with nested filters
+	if filter.Operator == OpOr {
+		orQuery := elastic.NewBoolQuery()
+		for _, nestedFilter := range filter.Filters {
+			subQuery, err := eb.buildQuery(nestedFilter)
+			if err != nil {
+				return nil, err
+			}
+			orQuery.Should(subQuery)
+		}
+		orQuery.MinimumNumberShouldMatch(1)
+		return orQuery, nil
+	}
+
+	// Handle $and operator with nested filters
+	if filter.Operator == OpAnd {
+		andQuery := elastic.NewBoolQuery()
+		for _, nestedFilter := range filter.Filters {
+			subQuery, err := eb.buildQuery(nestedFilter)
+			if err != nil {
+				return nil, err
+			}
+			andQuery.Must(subQuery)
+		}
+		return andQuery, nil
+	}
+
+	// Handle regular operators
+	switch filter.Operator {
+	case OpEq:
+		return elastic.NewTermQuery(filter.Field, filter.Value), nil
+	case OpNe:
+		return elastic.NewBoolQuery().MustNot(elastic.NewTermQuery(filter.Field, filter.Value)), nil
+	case OpLt:
+		return elastic.NewRangeQuery(filter.Field).Lt(filter.Value), nil
+	case OpLte:
+		return elastic.NewRangeQuery(filter.Field).Lte(filter.Value), nil
+	case OpGt:
+		return elastic.NewRangeQuery(filter.Field).Gt(filter.Value), nil
+	case OpGte:
+		return elastic.NewRangeQuery(filter.Field).Gte(filter.Value), nil
+	case OpIn:
+		return elastic.NewTermsQuery(filter.Field, filter.Value.([]any)...), nil
+	case OpNin:
+		return elastic.NewBoolQuery().MustNot(elastic.NewTermsQuery(filter.Field, filter.Value.([]any)...)), nil
+	default:
+		return nil, nil
+	}
 }
