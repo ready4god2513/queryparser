@@ -150,7 +150,7 @@ func TestParseFilter(t *testing.T) {
 			validate: func(t *testing.T, filters []Filter) {
 				assert.Equal(t, OpOr, filters[0].Operator)
 				assert.Len(t, filters[0].Filters, 2)
-				
+
 				// Check nested filters
 				nestedFilters := filters[0].Filters
 				fields := make(map[string]bool)
@@ -173,13 +173,13 @@ func TestParseFilter(t *testing.T) {
 			validate: func(t *testing.T, filters []Filter) {
 				assert.Equal(t, OpOr, filters[0].Operator)
 				assert.Len(t, filters[0].Filters, 2)
-				
+
 				// Check nested filters
 				nestedFilters := filters[0].Filters
 				assert.Equal(t, "firstname", nestedFilters[0].Field)
 				assert.Equal(t, OpLike, nestedFilters[0].Operator)
 				assert.Equal(t, "Rom", nestedFilters[0].Value)
-				
+
 				assert.Equal(t, "lastname", nestedFilters[1].Field)
 				assert.Equal(t, OpLike, nestedFilters[1].Operator)
 				assert.Equal(t, "Rom", nestedFilters[1].Value)

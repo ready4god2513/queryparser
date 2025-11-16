@@ -25,7 +25,7 @@ func TestOrLikeIntegration(t *testing.T) {
 		{
 			name:           "OR with LIKE operators",
 			filterJSON:     `{"$or": [{"firstname": {"$like": "Rom"}}, {"lastname": {"$like": "Rom"}}]}`,
-			shouldContain:  "firstname ILIKE $1 OR lastname ILIKE $2",
+			shouldContain:  "firstname LIKE $1 OR lastname LIKE $2",
 			expectedParams: 2,
 		},
 		{
@@ -69,7 +69,7 @@ func TestOrLikeIntegration(t *testing.T) {
 				assert.Contains(t, sql, " OR ", "SQL should contain OR operator")
 			}
 
-			// Verify ILIKE parameters are correctly formatted
+			// Verify LIKE parameters are correctly formatted
 			for i, arg := range args {
 				if str, ok := arg.(string); ok {
 					if strings.Contains(tt.filterJSON, "$like") {
@@ -91,7 +91,7 @@ func TestOrLikeBugFix(t *testing.T) {
 
 	// The exact case from the bug report
 	filterJSON := `{"$or": [{"firstname": {"$like": "Rom"}}, {"lastname": {"$like": "Rom"}}]}`
-	
+
 	filters, err := ParseFilter(filterJSON)
 	assert.NoError(t, err)
 
@@ -109,12 +109,12 @@ func TestOrLikeBugFix(t *testing.T) {
 	t.Logf("Generated SQL: %s", sql)
 	t.Logf("Generated Args: %v", args)
 
-	// The bug was: WHERE (firstname ILIKE ? AND lastname ILIKE ?)
-	// Should be:   WHERE (firstname ILIKE ? OR lastname ILIKE ?)
-	assert.Contains(t, sql, "firstname ILIKE $1 OR lastname ILIKE $2", 
+	// The bug was: WHERE (firstname LIKE ? AND lastname LIKE ?)
+	// Should be:   WHERE (firstname LIKE ? OR lastname LIKE ?)
+	assert.Contains(t, sql, "firstname LIKE $1 OR lastname LIKE $2",
 		"SQL should use OR, not AND between firstname and lastname")
-	
-	assert.NotContains(t, sql, "firstname ILIKE $1 AND lastname ILIKE $2",
+
+	assert.NotContains(t, sql, "firstname LIKE $1 AND lastname LIKE $2",
 		"SQL should NOT use AND between firstname and lastname")
 
 	// Verify arguments
