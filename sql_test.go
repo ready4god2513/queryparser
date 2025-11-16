@@ -146,12 +146,16 @@ func TestParseFilter(t *testing.T) {
 			name:    "operator $or",
 			input:   `{"$or": [{"age": {"$gt": 20}}, {"name": "mike"}]}`,
 			wantErr: false,
-			wantLen: 2,
+			wantLen: 1,
 			validate: func(t *testing.T, filters []Filter) {
-				// Create maps for easier validation
+				assert.Equal(t, OpOr, filters[0].Operator)
+				assert.Len(t, filters[0].Filters, 2)
+				
+				// Check nested filters
+				nestedFilters := filters[0].Filters
 				fields := make(map[string]bool)
 				operators := make(map[string]Operator)
-				for _, f := range filters {
+				for _, f := range nestedFilters {
 					fields[f.Field] = true
 					operators[f.Field] = f.Operator
 				}
@@ -159,6 +163,26 @@ func TestParseFilter(t *testing.T) {
 				assert.True(t, fields["name"], "should have name field")
 				assert.Equal(t, OpGt, operators["age"])
 				assert.Equal(t, OpEq, operators["name"])
+			},
+		},
+		{
+			name:    "operator $or with $like",
+			input:   `{"$or": [{"firstname": {"$like": "Rom"}}, {"lastname": {"$like": "Rom"}}]}`,
+			wantErr: false,
+			wantLen: 1,
+			validate: func(t *testing.T, filters []Filter) {
+				assert.Equal(t, OpOr, filters[0].Operator)
+				assert.Len(t, filters[0].Filters, 2)
+				
+				// Check nested filters
+				nestedFilters := filters[0].Filters
+				assert.Equal(t, "firstname", nestedFilters[0].Field)
+				assert.Equal(t, OpLike, nestedFilters[0].Operator)
+				assert.Equal(t, "Rom", nestedFilters[0].Value)
+				
+				assert.Equal(t, "lastname", nestedFilters[1].Field)
+				assert.Equal(t, OpLike, nestedFilters[1].Operator)
+				assert.Equal(t, "Rom", nestedFilters[1].Value)
 			},
 		},
 	}

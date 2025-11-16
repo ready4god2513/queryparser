@@ -63,16 +63,38 @@ func parseFilters(filter map[string]any) ([]Filter, error) {
 
 	// Handle special operators first
 	if orFilters, ok := filter[string(OpOr)].([]any); ok {
+		var nestedFilters []Filter
 		for _, f := range orFilters {
 			if subFilter, ok := f.(map[string]any); ok {
 				subFilters, err := parseFilters(subFilter)
 				if err != nil {
 					return nil, err
 				}
-				filters = append(filters, subFilters...)
+				nestedFilters = append(nestedFilters, subFilters...)
 			}
 		}
-		return filters, nil
+		return []Filter{{
+			Operator: OpOr,
+			Filters:  nestedFilters,
+		}}, nil
+	}
+
+	// Handle $and operator
+	if andFilters, ok := filter[string(OpAnd)].([]any); ok {
+		var nestedFilters []Filter
+		for _, f := range andFilters {
+			if subFilter, ok := f.(map[string]any); ok {
+				subFilters, err := parseFilters(subFilter)
+				if err != nil {
+					return nil, err
+				}
+				nestedFilters = append(nestedFilters, subFilters...)
+			}
+		}
+		return []Filter{{
+			Operator: OpAnd,
+			Filters:  nestedFilters,
+		}}, nil
 	}
 
 	// Handle regular field filters
