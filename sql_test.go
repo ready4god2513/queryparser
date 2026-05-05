@@ -185,6 +185,32 @@ func TestParseFilter(t *testing.T) {
 				assert.Equal(t, "Rom", nestedFilters[1].Value)
 			},
 		},
+		{
+			name:    "operator $or preserves object groups",
+			input:   `{"$or": [{"start_date": {"$lte": "2026-05-04T23:59:59.999Z"}, "end_date": {"$gte": "2026-05-04T00:00:00.000Z"}}, {"completed_at": {"$gte": "2026-05-04T00:00:00.000Z", "$lte": "2026-05-04T23:59:59.999Z"}}]}`,
+			wantErr: false,
+			wantLen: 1,
+			validate: func(t *testing.T, filters []Filter) {
+				assert.Equal(t, OpOr, filters[0].Operator)
+				assert.Len(t, filters[0].Filters, 2)
+
+				dateRange := filters[0].Filters[0]
+				assert.Equal(t, OpAnd, dateRange.Operator)
+				assert.Len(t, dateRange.Filters, 2)
+
+				dateRangeFields := make(map[string]Operator)
+				for _, nested := range dateRange.Filters {
+					dateRangeFields[nested.Field] = nested.Operator
+				}
+
+				assert.Equal(t, OpLte, dateRangeFields["start_date"])
+				assert.Equal(t, OpGte, dateRangeFields["end_date"])
+
+				completedRange := filters[0].Filters[1]
+				assert.Equal(t, OpAnd, completedRange.Operator)
+				assert.Len(t, completedRange.Filters, 2)
+			},
+		},
 	}
 
 	for _, tt := range tests {

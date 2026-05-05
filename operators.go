@@ -61,43 +61,24 @@ func ParseFilter(jsonStr string) ([]Filter, error) {
 func parseFilters(filter map[string]any) ([]Filter, error) {
 	var filters []Filter
 
-	// Handle special operators first
 	if orFilters, ok := filter[string(OpOr)].([]any); ok {
-		var nestedFilters []Filter
-		for _, f := range orFilters {
-			if subFilter, ok := f.(map[string]any); ok {
-				subFilters, err := parseFilters(subFilter)
-				if err != nil {
-					return nil, err
-				}
-				nestedFilters = append(nestedFilters, subFilters...)
-			}
+		logicalFilter, err := parseLogicalFilters(orFilters, OpOr)
+		if err != nil {
+			return nil, err
 		}
-		return []Filter{{
-			Operator: OpOr,
-			Filters:  nestedFilters,
-		}}, nil
+
+		return []Filter{logicalFilter}, nil
 	}
 
-	// Handle $and operator
 	if andFilters, ok := filter[string(OpAnd)].([]any); ok {
-		var nestedFilters []Filter
-		for _, f := range andFilters {
-			if subFilter, ok := f.(map[string]any); ok {
-				subFilters, err := parseFilters(subFilter)
-				if err != nil {
-					return nil, err
-				}
-				nestedFilters = append(nestedFilters, subFilters...)
-			}
+		logicalFilter, err := parseLogicalFilters(andFilters, OpAnd)
+		if err != nil {
+			return nil, err
 		}
-		return []Filter{{
-			Operator: OpAnd,
-			Filters:  nestedFilters,
-		}}, nil
+
+		return []Filter{logicalFilter}, nil
 	}
 
-	// Handle regular field filters
 	for field, value := range filter {
 		if field == string(OpOr) || field == string(OpAnd) {
 			continue
@@ -125,6 +106,37 @@ func parseFilters(filter map[string]any) ([]Filter, error) {
 	}
 
 	return filters, nil
+}
+
+func parseLogicalFilters(items []any, operator Operator) (Filter, error) {
+	nestedFilters := make([]Filter, 0, len(items))
+
+	for _, item := range items {
+		subFilter, ok := item.(map[string]any)
+		if !ok {
+			return Filter{}, fmt.Errorf("operator %s expects object filters", operator)
+		}
+
+		subFilters, err := parseFilters(subFilter)
+		if err != nil {
+			return Filter{}, err
+		}
+
+		if len(subFilters) == 1 {
+			nestedFilters = append(nestedFilters, subFilters[0])
+			continue
+		}
+
+		nestedFilters = append(nestedFilters, Filter{
+			Operator: OpAnd,
+			Filters:  subFilters,
+		})
+	}
+
+	return Filter{
+		Operator: operator,
+		Filters:  nestedFilters,
+	}, nil
 }
 
 // ParseQueryOptions parses a JSON string into QueryOptions
